@@ -85,11 +85,3 @@ From the project root:
 │   └── src/pages/      # View components & Routing
 └── database/           # SQL Schema & Seed scripts
 ```
-
-## 🔒 Security
-- Always change the `JWT_SECRET` in production.
-- Ensure all `.env` files are added to your `.gitignore` (pre-configured).
-- Never commit real passwords or email API keys to the repository.
-
-## 📄 License
-© 2026 CanteenGO. All rights reserved. Licensed under the ISC License.
