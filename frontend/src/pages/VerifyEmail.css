@@ -1,0 +1,120 @@
+.verify-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px;
+}
+
+.verify-card {
+    background: rgba(255, 255, 255, 0.95);
+    padding: 40px;
+    border-radius: 20px;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    width: 100%;
+    max-width: 450px;
+    text-align: center;
+    backdrop-filter: blur(10px);
+}
+
+.verify-card h1 {
+    color: #333;
+    margin-bottom: 10px;
+    font-size: 28px;
+}
+
+.verify-card p {
+    color: #666;
+    margin-bottom: 30px;
+    line-height: 1.5;
+}
+
+.code-input-group {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+.code-input-group input {
+    width: 50px;
+    height: 60px;
+    text-align: center;
+    font-size: 24px;
+    font-weight: bold;
+    border: 2px solid #ddd;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.code-input-group input:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 8px rgba(102, 126, 234, 0.5);
+    outline: none;
+}
+
+.verify-button {
+    width: 100%;
+    padding: 15px;
+    background: #667eea;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 18px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.verify-button:hover:not(:disabled) {
+    background: #5a67d8;
+}
+
+.verify-button:disabled {
+    background: #a0aec0;
+    cursor: not-allowed;
+}
+
+.error-message {
+    color: #e53e3e;
+    background: #fff5f5;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.success-message {
+    color: #38a169;
+    background: #f0fff4;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    font-size: 14px;
+}
+
+.verify-footer {
+    margin-top: 30px;
+}
+
+.verify-footer p {
+    margin-bottom: 10px;
+    font-size: 14px;
+}
+
+.resend-link,
+.back-link {
+    background: none;
+    border: none;
+    color: #667eea;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+    font-size: inherit;
+}
+
+.resend-link:hover,
+.back-link:hover {
+    color: #5a67d8;
+}

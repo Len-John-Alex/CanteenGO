@@ -1,0 +1,14 @@
+{
+  "name": "college-canteen-database",
+  "version": "1.0.0",
+  "description": "Database seeding script for college canteen",
+  "main": "seed.js",
+  "scripts": {
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "mysql2": "^3.6.5",
+    "dotenv": "^16.3.1"
+  }
+}

@@ -1,0 +1,2 @@
+ALTER TABLE students ADD COLUMN is_verified BOOLEAN DEFAULT FALSE;
+ALTER TABLE students ADD COLUMN verification_code VARCHAR(10) NULL;

@@ -1,0 +1,257 @@
+.manage-students {
+    padding: 2rem;
+    max-width: 1280px;
+    margin: 0 auto;
+}
+
+.manage-students h1 {
+    margin-bottom: 3rem;
+    color: var(--text-main);
+    font-size: 2.25rem;
+    font-weight: 800;
+    letter-spacing: -0.025em;
+}
+
+.students-table-container {
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-light);
+    overflow: hidden;
+}
+
+.students-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.students-table th {
+    background: var(--bg-main);
+    padding: 1rem 1.5rem;
+    text-align: left;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.students-table td {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-main);
+    font-size: 0.9375rem;
+}
+
+.students-table tr:hover {
+    background: #f8faff;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.view-btn {
+    background: var(--bg-card);
+    color: var(--primary);
+    border: 1px solid var(--border-light);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-btn:hover {
+    border-color: var(--primary);
+    background: #f5f3ff;
+}
+
+.delete-btn {
+    background: var(--bg-card);
+    color: var(--danger);
+    border: 1px solid var(--border-light);
+    padding: 0.5rem 1rem;
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.delete-btn:hover {
+    border-color: var(--danger);
+    background: #fef2f2;
+}
+
+.status-badge {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.status-badge.verified {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-badge.pending {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: var(--bg-card);
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.history-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.history-table th,
+.history-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+.order-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.order-status.paid {
+    background-color: #d1ecf1;
+    color: #0c5460;
+}
+
+.order-status.preparing {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.order-status.ready {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.order-status.completed {
+    background-color: #c3e6cb;
+    color: #155724;
+}
+
+.order-status.cancelled {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.no-history {
+    text-align: center;
+    color: #666;
+    padding: 20px;
+}
+
+/* Delete Modal Specific Styles */
+.delete-modal {
+    max-width: 450px;
+}
+
+.warning-text {
+    color: #e74c3c;
+    font-size: 0.9rem;
+    margin-top: 10px;
+    font-weight: 500;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 25px;
+}
+
+.cancel-btn,
+.confirm-delete-btn {
+    padding: 10px 20px;
+    border-radius: 6px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.cancel-btn {
+    background-color: #f1f2f6;
+    color: #2f3542;
+}
+
+.cancel-btn:hover {
+    background-color: #dfe4ea;
+}
+
+.confirm-delete-btn {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.confirm-delete-btn:hover {
+    background-color: #c0392b;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(231, 76, 60, 0.2);
+}
+
+.confirm-delete-btn:active {
+    transform: translateY(0);
+}
