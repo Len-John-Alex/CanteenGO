@@ -33,18 +33,28 @@ app.use('/api/students', require('./routes/studentRoutes'));
 
 // Health check
 app.get('/api/health', async (req, res) => {
+  const dbConfig = {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT,
+    user: process.env.DB_USER,
+    database: process.env.DB_NAME,
+    ssl: process.env.DB_SSL
+  };
+
   try {
     const [result] = await require('./config/database').query('SELECT 1');
     res.json({
       status: 'OK',
       message: 'Server and Database are running',
-      database: result ? 'Connected' : 'Failed'
+      database: result ? 'Connected' : 'Failed',
+      config: dbConfig
     });
   } catch (error) {
     res.status(500).json({
       status: 'Error',
       message: 'Database connection failed',
-      error: error.message
+      error: error.message,
+      config: dbConfig
     });
   }
 });
