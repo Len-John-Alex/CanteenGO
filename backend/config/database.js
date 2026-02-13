@@ -6,7 +6,7 @@ const pool = mysql.createPool({
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'college_canteen',
-  // Prefer DB_PORT specifically for the database to avoid conflict with web server's PORT
+  // Use DB_PORT for the database connection to avoid conflicts with Render's PORT
   port: process.env.DB_PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
