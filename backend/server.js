@@ -32,8 +32,21 @@ app.use('/api/feedback', feedbackRoutes);
 app.use('/api/students', require('./routes/studentRoutes'));
 
 // Health check
-app.get('/api/health', (req, res) => {
-  res.json({ message: 'Server is running' });
+app.get('/api/health', async (req, res) => {
+  try {
+    const [result] = await require('./config/database').query('SELECT 1');
+    res.json({
+      status: 'OK',
+      message: 'Server and Database are running',
+      database: result ? 'Connected' : 'Failed'
+    });
+  } catch (error) {
+    res.status(500).json({
+      status: 'Error',
+      message: 'Database connection failed',
+      error: error.message
+    });
+  }
 });
 
 // Error handling middleware

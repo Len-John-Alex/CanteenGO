@@ -1,12 +1,14 @@
 const bcrypt = require('bcryptjs');
 const mysql = require('mysql2/promise');
-require('dotenv').config({ path: '../backend/.env' });
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../backend/.env') });
 
 const pool = mysql.createPool({
   host: process.env.DB_HOST || 'localhost',
   user: process.env.DB_USER || 'root',
   password: process.env.DB_PASSWORD || '',
   database: process.env.DB_NAME || 'college_canteen',
+  port: process.env.DB_PORT || process.env.PORT || 3306,
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0
@@ -19,12 +21,12 @@ async function seedDatabase() {
     const staffPassword = await bcrypt.hash('whatisthepassword', 10);
 
     await pool.execute(
-      'INSERT INTO students (student_id, name, email, password) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=name',
+      'INSERT INTO students (student_id, name, email, password, is_verified) VALUES (?, ?, ?, ?, TRUE) ON DUPLICATE KEY UPDATE name=name',
       ['STU001', 'John Doe', 'john.doe@college.edu', studentPassword]
     );
 
     await pool.execute(
-      'INSERT INTO students (student_id, name, email, password) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE name=name',
+      'INSERT INTO students (student_id, name, email, password, is_verified) VALUES (?, ?, ?, ?, TRUE) ON DUPLICATE KEY UPDATE name=name',
       ['STU002', 'Jane Smith', 'jane.smith@college.edu', studentPassword]
     );
 

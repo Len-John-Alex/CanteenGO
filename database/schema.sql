@@ -1,6 +1,4 @@
--- Create database
-CREATE DATABASE IF NOT EXISTS college_canteen;
-USE college_canteen;
+-- Database schema for CanteenGO
 
 -- Students table
 CREATE TABLE IF NOT EXISTS students (
