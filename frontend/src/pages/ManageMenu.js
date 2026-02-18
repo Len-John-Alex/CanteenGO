@@ -135,7 +135,10 @@ const ManageMenu = () => {
                     <div key={item.id} className="mgmt-card">
                         <div className="mgmt-card-img">
                             {item.imageUrl ? (
-                                <img src={`http://localhost:5000${item.imageUrl}`} alt={item.name} />
+                                <img
+                                    src={item.imageUrl.startsWith('http') ? item.imageUrl : `${BASE_URL}${item.imageUrl}`}
+                                    alt={item.name}
+                                />
                             ) : (
                                 <div className="no-img-placeholder">No Image</div>
                             )}

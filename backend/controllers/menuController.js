@@ -55,7 +55,7 @@ const getMenuItems = async (req, res) => {
 const addMenuItem = async (req, res) => {
   try {
     const { name, description, price, category, quantity, lowStockThreshold } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
+    const imageUrl = req.file ? req.file.path : null;
 
     const result = await pool.query(
       'INSERT INTO menu_items (name, description, price, category, quantity, low_stock_threshold, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
@@ -83,7 +83,7 @@ const updateMenuItem = async (req, res) => {
 
     if (req.file) {
       query += `, image_url=$${params.length + 1}`;
-      params.push(`/uploads/${req.file.filename}`);
+      params.push(req.file.path);
     }
 
     query += ` WHERE id=$${params.length + 1}`;

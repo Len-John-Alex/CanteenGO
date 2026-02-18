@@ -6,8 +6,10 @@ const { sendVerificationEmail, sendWelcomeEmail } = require('../utils/emailServi
 const loginStudent = async (req, res) => {
   try {
     const { studentId, password } = req.body;
+    console.log('Login attempt for student:', studentId);
 
     if (!studentId || !password) {
+      console.log('Login failed: Missing credentials');
       return res.status(400).json({ message: 'Student ID and password are required' });
     }
 
@@ -18,18 +20,22 @@ const loginStudent = async (req, res) => {
     const students = result.rows;
 
     if (students.length === 0) {
+      console.log('Login failed: Student not found ->', studentId);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     const student = students[0];
     const isPasswordValid = await bcrypt.compare(password, student.password);
+    console.log('Password valid for', studentId, ':', isPasswordValid);
 
     if (!isPasswordValid) {
+      console.log('Login failed: Incorrect password for', studentId);
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Check if verified
     if (!student.is_verified) {
+      console.log('Login failed: Account not verified ->', studentId);
       return res.status(403).json({
         message: 'Email not verified',
         isNotVerified: true,
@@ -39,10 +45,12 @@ const loginStudent = async (req, res) => {
 
     // Check if soft deleted
     if (student.is_deleted) {
+      console.log('Login failed: Account deactivated ->', studentId);
       return res.status(403).json({ message: 'Account has been deactivated.' });
     }
 
     const token = generateToken(student.id, 'student');
+    console.log('Login successful for:', studentId);
 
     res.json({
       message: 'Login successful',
