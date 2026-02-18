@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { getMenuItems, addMenuItem, updateMenuItem, deleteMenuItem } = require('../controllers/menuController');
 const { authenticate, authorize } = require('../middleware/auth');
+const multer = require('multer');
+const path = require('path');
 const { storage } = require('../config/cloudinary');
 
 const upload = multer({
