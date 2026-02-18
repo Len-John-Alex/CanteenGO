@@ -9,16 +9,16 @@ const validateCheckout = async (req, res) => {
         }
 
         // Check slot availability
-        const [slots] = await pool.execute(
-            'SELECT max_orders, current_orders, is_active FROM time_slots WHERE slot_id = ?',
+        const result = await pool.query(
+            'SELECT max_orders, current_orders, is_active FROM time_slots WHERE slot_id = $1',
             [slot_id]
         );
 
-        if (slots.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Time slot not found' });
         }
 
-        const slot = slots[0];
+        const slot = result.rows[0];
 
         if (!slot.is_active) {
             return res.status(400).json({ message: 'Selected time slot is no longer active' });
@@ -40,9 +40,9 @@ const validateCheckout = async (req, res) => {
 };
 
 const completeOrder = async (req, res) => {
-    const connection = await pool.getConnection();
+    const client = await pool.connect();
     try {
-        await connection.beginTransaction();
+        await client.query('BEGIN');
 
         const { slot_id, order_notes } = req.body;
         const student_id = req.user.id;
@@ -52,78 +52,80 @@ const completeOrder = async (req, res) => {
         }
 
         // 1. ATOMIC UPDATE: Increment time slot count
-        const [result] = await connection.execute(
+        const result = await client.query(
             `UPDATE time_slots 
              SET current_orders = current_orders + 1 
-             WHERE slot_id = ? AND current_orders < max_orders AND is_active = TRUE`,
+             WHERE slot_id = $1 AND current_orders < max_orders AND is_active = TRUE`,
             [slot_id]
         );
 
-        if (result.affectedRows === 0) {
-            await connection.rollback();
+        if (result.rowCount === 0) {
+            await client.query('ROLLBACK');
             return res.status(400).json({ message: 'Time slot full or inactive. Please choose another.' });
         }
 
         // 2. Get cart items to create order
-        const [cartItems] = await connection.execute(
+        const cartResult = await client.query(
             `SELECT c.menu_item_id, c.quantity, m.price 
              FROM cart_items c 
              JOIN menu_items m ON c.menu_item_id = m.id 
-             WHERE c.student_id = ?`,
+             WHERE c.student_id = $1`,
             [student_id]
         );
+        const cartItems = cartResult.rows;
 
         if (cartItems.length === 0) {
-            await connection.rollback();
+            await client.query('ROLLBACK');
             return res.status(400).json({ message: 'Cart is empty' });
         }
 
         const totalAmount = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
 
         // 3. Create Order
-        const [orderResult] = await connection.execute(
-            'INSERT INTO orders (student_id, slot_id, total_amount, order_notes, status) VALUES (?, ?, ?, ?, "PAID")',
+        const orderResult = await client.query(
+            "INSERT INTO orders (student_id, slot_id, total_amount, order_notes, status) VALUES ($1, $2, $3, $4, 'PAID') RETURNING id",
             [student_id, slot_id, totalAmount, order_notes || null]
         );
 
-        const orderId = orderResult.insertId;
+        const orderId = orderResult.rows[0].id;
 
         // 4. Create Order Items
         for (const item of cartItems) {
-            await connection.execute(
-                'INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_order) VALUES (?, ?, ?, ?)',
+            await client.query(
+                'INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_order) VALUES ($1, $2, $3, $4)',
                 [orderId, item.menu_item_id, item.quantity, item.price]
             );
         }
 
         // 5. Update Menu Item Stock
         for (const item of cartItems) {
-            await connection.execute(
-                'UPDATE menu_items SET quantity = quantity - ? WHERE id = ?',
+            await client.query(
+                'UPDATE menu_items SET quantity = quantity - $1 WHERE id = $2',
                 [item.quantity, item.menu_item_id]
             );
         }
 
         // 6. Clear Cart
-        await connection.execute('DELETE FROM cart_items WHERE student_id = ?', [student_id]);
+        await client.query('DELETE FROM cart_items WHERE student_id = $1', [student_id]);
 
         // 6. Notify All Staff about new order
         try {
             // Get student name for the notification
-            const [studentData] = await connection.execute(
-                'SELECT name FROM students WHERE id = ?',
+            const studentResult = await client.query(
+                'SELECT name FROM students WHERE id = $1',
                 [student_id]
             );
-            const studentName = studentData.length > 0 ? studentData[0].name : 'A student';
+            const studentName = studentResult.rows.length > 0 ? studentResult.rows[0].name : 'A student';
 
             // Get all staff members
-            const [staffMembers] = await connection.execute('SELECT id FROM staff');
+            const staffResult = await client.query('SELECT id FROM staff');
+            const staffMembers = staffResult.rows;
 
             // Create notification for each staff member
             const notificationMessage = `New order #${orderId} received from ${studentName}!`;
             for (const staff of staffMembers) {
-                await connection.execute(
-                    'INSERT INTO notifications (student_id, staff_id, order_id, message, type, recipient_type) VALUES (?, ?, ?, ?, "ORDER", "staff")',
+                await client.query(
+                    "INSERT INTO notifications (student_id, staff_id, order_id, message, type, recipient_type) VALUES ($1, $2, $3, $4, 'ORDER', 'staff')",
                     [student_id, staff.id, orderId, notificationMessage]
                 );
             }
@@ -132,7 +134,7 @@ const completeOrder = async (req, res) => {
             console.error('Error sending staff notifications:', notifError);
         }
 
-        await connection.commit();
+        await client.query('COMMIT');
 
         res.json({
             success: true,
@@ -141,11 +143,11 @@ const completeOrder = async (req, res) => {
         });
 
     } catch (error) {
-        if (connection) await connection.rollback();
+        await client.query('ROLLBACK');
         console.error('Order completion error:', error);
         res.status(500).json({ message: 'Server error during order completion' });
     } finally {
-        if (connection) connection.release();
+        client.release();
     }
 };
 
@@ -158,14 +160,14 @@ const cancelOrder = async (req, res) => {
         }
 
         // ATOMIC UPDATE: Decrement only if above zero
-        const [result] = await pool.execute(
+        const result = await pool.query(
             `UPDATE time_slots 
              SET current_orders = GREATEST(0, current_orders - 1) 
-             WHERE slot_id = ? AND current_orders > 0`,
+             WHERE slot_id = $1 AND current_orders > 0`,
             [slot_id]
         );
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(400).json({
                 message: 'Could not decrease order count (already at zero or slot missing)'
             });
@@ -192,35 +194,35 @@ const getOrderDetails = async (req, res) => {
                      FROM orders o 
                      JOIN time_slots ts ON o.slot_id = ts.slot_id 
                      JOIN students s ON o.student_id = s.id
-                     WHERE o.id = ?`;
+                     WHERE o.id = $1`;
         let params = [id];
 
         // Only enforce ownership if the user is a student
         if (role === 'student') {
-            query += ' AND o.student_id = ?';
+            query += ' AND o.student_id = $2';
             params.push(userId);
         }
 
-        const [orders] = await pool.execute(query, params);
+        const result = await pool.query(query, params);
 
-        if (orders.length === 0) {
+        if (result.rows.length === 0) {
             return res.status(404).json({ message: 'Order not found' });
         }
 
-        const order = orders[0];
+        const order = result.rows[0];
 
         // Fetch order items
-        const [items] = await pool.execute(
+        const itemsResult = await pool.query(
             `SELECT oi.*, m.name 
              FROM order_items oi 
              JOIN menu_items m ON oi.menu_item_id = m.id 
-             WHERE oi.order_id = ?`,
+             WHERE oi.order_id = $1`,
             [id]
         );
 
         res.json({
             ...order,
-            items
+            items: itemsResult.rows
         });
 
     } catch (error) {
@@ -233,25 +235,26 @@ const getStudentOrders = async (req, res) => {
     try {
         const studentId = req.user.id;
 
-        const [orders] = await pool.execute(
+        const result = await pool.query(
             `SELECT o.*, ts.start_time, ts.end_time 
              FROM orders o 
              JOIN time_slots ts ON o.slot_id = ts.slot_id 
-             WHERE o.student_id = ? AND o.is_student_hidden = FALSE
+             WHERE o.student_id = $1 AND o.is_student_hidden = FALSE
              ORDER BY o.created_at DESC`,
             [studentId]
         );
+        const orders = result.rows;
 
         const ordersWithItems = [];
         for (const order of orders) {
-            const [items] = await pool.execute(
+            const itemsResult = await pool.query(
                 `SELECT oi.*, m.name 
                  FROM order_items oi 
                  JOIN menu_items m ON oi.menu_item_id = m.id 
-                 WHERE oi.order_id = ?`,
+                 WHERE oi.order_id = $1`,
                 [order.id]
             );
-            ordersWithItems.push({ ...order, items });
+            ordersWithItems.push({ ...order, items: itemsResult.rows });
         }
 
         res.json(ordersWithItems);
@@ -296,24 +299,25 @@ const getStaffOrders = async (req, res) => {
                         return res.status(400).json({ message: 'Invalid status filter' });
                     }
             }
-            query += ' WHERE o.status = ?';
+            query += ' WHERE o.status = $1';
             queryParams.push(dbStatus);
         }
 
         query += ' ORDER BY ts.start_time ASC';
 
-        const [orders] = await pool.execute(query, queryParams);
+        const result = await pool.query(query, queryParams);
+        const orders = result.rows;
 
         const ordersWithItems = [];
         for (const order of orders) {
-            const [items] = await pool.execute(
+            const itemsResult = await pool.query(
                 `SELECT oi.*, m.name 
                  FROM order_items oi 
                  JOIN menu_items m ON oi.menu_item_id = m.id 
-                 WHERE oi.order_id = ?`,
+                 WHERE oi.order_id = $1`,
                 [order.id]
             );
-            ordersWithItems.push({ ...order, items });
+            ordersWithItems.push({ ...order, items: itemsResult.rows });
         }
 
         res.json(ordersWithItems);
@@ -334,30 +338,30 @@ const updateOrderStatus = async (req, res) => {
             return res.status(400).json({ message: 'Invalid status' });
         }
 
-        const [result] = await pool.execute(
-            'UPDATE orders SET status = ? WHERE id = ?',
+        const result = await pool.query(
+            'UPDATE orders SET status = $1 WHERE id = $2',
             [status, id]
         );
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Order not found' });
         }
 
         // Trigger notification for READY or COMPLETED
         if (status === 'READY' || status === 'COMPLETED') {
-            const [orderInfo] = await pool.execute(
-                'SELECT student_id FROM orders WHERE id = ?',
+            const orderInfoResult = await pool.query(
+                'SELECT student_id FROM orders WHERE id = $1',
                 [id]
             );
 
-            if (orderInfo.length > 0) {
-                const studentId = orderInfo[0].student_id;
+            if (orderInfoResult.rows.length > 0) {
+                const studentId = orderInfoResult.rows[0].student_id;
                 const message = status === 'READY'
                     ? `Your order #${id} is READY for pickup!`
                     : `Your order #${id} has been COMPLETED. Enjoy your meal!`;
 
-                await pool.execute(
-                    'INSERT INTO notifications (student_id, staff_id, order_id, message, type, recipient_type) VALUES (?, NULL, ?, ?, "ORDER", "student")',
+                await pool.query(
+                    "INSERT INTO notifications (student_id, staff_id, order_id, message, type, recipient_type) VALUES ($1, NULL, $2, $3, 'ORDER', 'student')",
                     [studentId, id, message]
                 );
             }
@@ -378,81 +382,82 @@ const getRevenueStats = async (req, res) => {
         const isYearly = !month || month === 'all';
         const targetMonth = isYearly ? null : month;
 
+        // PostgreSQL uses EXTRACT(YEAR FROM ...) instead of YEAR(...)
         let statsQuery = `
-            SELECT COUNT(*) as totalOrders, SUM(total_amount) as totalRevenue 
+            SELECT COUNT(*) as "totalOrders", SUM(total_amount) as "totalRevenue" 
             FROM orders 
             WHERE status IN ('PAID', 'PREPARING', 'READY', 'COMPLETED') 
-            AND YEAR(created_at) = ?
+            AND EXTRACT(YEAR FROM created_at) = $1
         `;
         const statsParams = [targetYear];
 
         if (!isYearly) {
-            statsQuery += ' AND MONTH(created_at) = ?';
+            statsQuery += ' AND EXTRACT(MONTH FROM created_at) = $2';
             statsParams.push(targetMonth);
         }
 
-        const [stats] = await pool.execute(statsQuery, statsParams);
+        const statsResult = await pool.query(statsQuery, statsParams);
+        const stats = statsResult.rows[0];
 
         let mostSoldQuery = `
-            SELECT m.name, SUM(oi.quantity) as totalQuantity
+            SELECT m.name, SUM(oi.quantity) as "totalQuantity"
             FROM order_items oi
             JOIN orders o ON oi.order_id = o.id
             JOIN menu_items m ON oi.menu_item_id = m.id
             WHERE o.status IN ('PAID', 'PREPARING', 'READY', 'COMPLETED')
-            AND YEAR(o.created_at) = ?
+            AND EXTRACT(YEAR FROM o.created_at) = $1
         `;
         const mostSoldParams = [targetYear];
 
         if (!isYearly) {
-            mostSoldQuery += ' AND MONTH(o.created_at) = ?';
+            mostSoldQuery += ' AND EXTRACT(MONTH FROM o.created_at) = $2';
             mostSoldParams.push(targetMonth);
         }
 
         mostSoldQuery += `
-            GROUP BY m.id
-            ORDER BY totalQuantity DESC
+            GROUP BY m.id, m.name
+            ORDER BY "totalQuantity" DESC
             LIMIT 1
         `;
 
-        const [mostSold] = await pool.execute(mostSoldQuery, mostSoldParams);
+        const mostSoldResult = await pool.query(mostSoldQuery, mostSoldParams);
+        const mostSold = mostSoldResult.rows;
 
-        // --- NEW: Breakdown Data for Charts ---
+        // --- BREAKDOWN DATA ---
         let breakdownQuery = '';
         const breakdownParams = [targetYear];
 
         if (!isYearly) {
-            // Daily breakdown for a specific month
             breakdownQuery = `
-                SELECT DAY(created_at) as label, SUM(total_amount) as value
+                SELECT EXTRACT(DAY FROM created_at) as label, SUM(total_amount) as value
                 FROM orders
                 WHERE status IN ('PAID', 'PREPARING', 'READY', 'COMPLETED')
-                AND YEAR(created_at) = ? AND MONTH(created_at) = ?
-                GROUP BY DAY(created_at)
+                AND EXTRACT(YEAR FROM created_at) = $1 AND EXTRACT(MONTH FROM created_at) = $2
+                GROUP BY EXTRACT(DAY FROM created_at)
                 ORDER BY label ASC
             `;
             breakdownParams.push(targetMonth);
         } else {
-            // Monthly breakdown for a specific year
             breakdownQuery = `
-                SELECT MONTH(created_at) as label, SUM(total_amount) as value
+                SELECT EXTRACT(MONTH FROM created_at) as label, SUM(total_amount) as value
                 FROM orders
                 WHERE status IN ('PAID', 'PREPARING', 'READY', 'COMPLETED')
-                AND YEAR(created_at) = ?
-                GROUP BY MONTH(created_at)
+                AND EXTRACT(YEAR FROM created_at) = $1
+                GROUP BY EXTRACT(MONTH FROM created_at)
                 ORDER BY label ASC
             `;
         }
 
-        const [breakdown] = await pool.execute(breakdownQuery, breakdownParams);
+        const breakdownResult = await pool.query(breakdownQuery, breakdownParams);
 
         res.json({
             month: isYearly ? 'all' : targetMonth,
             year: targetYear,
-            totalOrders: stats[0].totalOrders || 0,
-            totalRevenue: parseFloat(stats[0].totalRevenue || 0),
+            totalOrders: parseInt(stats.totalOrders || 0),
+            totalRevenue: parseFloat(stats.totalRevenue || 0),
             mostSoldItem: mostSold.length > 0 ? mostSold[0] : null,
-            breakdown: breakdown.map(item => ({
-                label: item.label,
+            breakdown: breakdownResult.rows.map(item => ({
+                label: parseInt(item.label),
                 value: parseFloat(item.value || 0)
             }))
         });
@@ -466,36 +471,33 @@ const getRevenueStats = async (req, res) => {
 const getStudentSpending = async (req, res) => {
     try {
         const studentId = req.user.id;
-
-        // Use the current date and first day of current month for filtering
         const now = new Date();
         const year = now.getFullYear();
-        const month = now.getMonth() + 1; // 1-indexed for SQL
-        const day = now.getDate();
+        const month = now.getMonth() + 1;
 
-        // 1. Daily Spending
-        const [dailyResult] = await pool.execute(
-            `SELECT SUM(total_amount) as dailyTotal 
+        // Daily Spending - PostgreSQL uses CURRENT_DATE
+        const dailyResult = await pool.query(
+            `SELECT SUM(total_amount) as "dailyTotal" 
              FROM orders 
-             WHERE student_id = ? 
+             WHERE student_id = $1 
              AND status IN ('PAID', 'PREPARING', 'READY', 'COMPLETED')
-             AND DATE(created_at) = CURDATE()`,
+             AND created_at::date = CURRENT_DATE`,
             [studentId]
         );
 
-        // 2. Monthly Spending
-        const [monthlyResult] = await pool.execute(
-            `SELECT SUM(total_amount) as monthlyTotal 
+        // Monthly Spending
+        const monthlyResult = await pool.query(
+            `SELECT SUM(total_amount) as "monthlyTotal" 
              FROM orders 
-             WHERE student_id = ? 
+             WHERE student_id = $1 
              AND status IN ('PAID', 'PREPARING', 'READY', 'COMPLETED')
-             AND YEAR(created_at) = ? AND MONTH(created_at) = ?`,
+             AND EXTRACT(YEAR FROM created_at) = $2 AND EXTRACT(MONTH FROM created_at) = $3`,
             [studentId, year, month]
         );
 
         res.json({
-            dailySpending: parseFloat(dailyResult[0].dailyTotal || 0),
-            monthlySpending: parseFloat(monthlyResult[0].monthlyTotal || 0)
+            dailySpending: parseFloat(dailyResult.rows[0].dailyTotal || 0),
+            monthlySpending: parseFloat(monthlyResult.rows[0].monthlyTotal || 0)
         });
 
     } catch (error) {
@@ -509,12 +511,12 @@ const hideOrderForStudent = async (req, res) => {
         const { id } = req.params;
         const studentId = req.user.id;
 
-        const [result] = await pool.execute(
-            'UPDATE orders SET is_student_hidden = TRUE WHERE id = ? AND student_id = ?',
+        const result = await pool.query(
+            'UPDATE orders SET is_student_hidden = TRUE WHERE id = $1 AND student_id = $2',
             [id, studentId]
         );
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Order not found or not authorized' });
         }
 

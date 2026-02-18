@@ -1,6 +1,6 @@
 -- Create Notifications table
 CREATE TABLE IF NOT EXISTS notifications (
-    id INT AUTO_INCREMENT PRIMARY KEY,
+    id SERIAL PRIMARY KEY,
     student_id INT NOT NULL,
     order_id INT NOT NULL,
     message TEXT NOT NULL,

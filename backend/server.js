@@ -42,7 +42,7 @@ app.get('/api/health', async (req, res) => {
   };
 
   try {
-    const [result] = await require('./config/database').query('SELECT 1');
+    const result = await require('./config/database').query('SELECT 1');
     res.json({
       status: 'OK',
       message: 'Server and Database are running',

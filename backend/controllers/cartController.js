@@ -10,26 +10,27 @@ const addToCart = async (req, res) => {
     }
 
     // Check if menu item exists and get stock
-    const [menuItems] = await pool.execute(
-      'SELECT id, name, price, quantity, is_available FROM menu_items WHERE id = ?',
+    const menuResult = await pool.query(
+      'SELECT id, name, price, quantity, is_available FROM menu_items WHERE id = $1',
       [menuItemId]
     );
 
-    if (menuItems.length === 0) {
+    if (menuResult.rows.length === 0) {
       return res.status(404).json({ message: 'Menu item not found' });
     }
 
-    const menuItem = menuItems[0];
+    const menuItem = menuResult.rows[0];
 
     if (!menuItem.is_available) {
       return res.status(400).json({ message: 'Item is not available' });
     }
 
     // Check if item is already in cart
-    const [cartItems] = await pool.execute(
-      'SELECT quantity FROM cart_items WHERE student_id = ? AND menu_item_id = ?',
+    const cartResult = await pool.query(
+      'SELECT quantity FROM cart_items WHERE student_id = $1 AND menu_item_id = $2',
       [studentId, menuItemId]
     );
+    const cartItems = cartResult.rows;
 
     let currentCartQty = 0;
     if (cartItems.length > 0) {
@@ -46,14 +47,14 @@ const addToCart = async (req, res) => {
 
     if (cartItems.length > 0) {
       // Update existing cart item
-      await pool.execute(
-        'UPDATE cart_items SET quantity = ?, updated_at = NOW() WHERE student_id = ? AND menu_item_id = ?',
+      await pool.query(
+        'UPDATE cart_items SET quantity = $1, updated_at = NOW() WHERE student_id = $2 AND menu_item_id = $3',
         [newTotalQty, studentId, menuItemId]
       );
     } else {
       // Insert new cart item
-      await pool.execute(
-        'INSERT INTO cart_items (student_id, menu_item_id, quantity) VALUES (?, ?, ?)',
+      await pool.query(
+        'INSERT INTO cart_items (student_id, menu_item_id, quantity) VALUES ($1, $2, $3)',
         [studentId, menuItemId, quantity]
       );
     }
@@ -76,7 +77,7 @@ const getCart = async (req, res) => {
   try {
     const studentId = req.user.id;
 
-    const [cartItems] = await pool.execute(
+    const result = await pool.query(
       `SELECT 
         c.id, 
         c.menu_item_id, 
@@ -88,11 +89,11 @@ const getCart = async (req, res) => {
         (m.price * c.quantity) as total_price
        FROM cart_items c
        JOIN menu_items m ON c.menu_item_id = m.id
-       WHERE c.student_id = ?`,
+       WHERE c.student_id = $1`,
       [studentId]
     );
 
-    res.json(cartItems);
+    res.json(result.rows);
   } catch (error) {
     console.error('Get cart error:', error);
     res.status(500).json({ message: 'Server error retrieving cart' });
@@ -104,8 +105,8 @@ const removeFromCart = async (req, res) => {
     const { menuItemId } = req.params;
     const studentId = req.user.id;
 
-    await pool.execute(
-      'DELETE FROM cart_items WHERE student_id = ? AND menu_item_id = ?',
+    await pool.query(
+      'DELETE FROM cart_items WHERE student_id = $1 AND menu_item_id = $2',
       [studentId, menuItemId]
     );
 
@@ -127,24 +128,24 @@ const updateCartItem = async (req, res) => {
 
     if (quantity <= 0) {
       // If quantity is 0 or less, remove item
-      await pool.execute(
-        'DELETE FROM cart_items WHERE student_id = ? AND menu_item_id = ?',
+      await pool.query(
+        'DELETE FROM cart_items WHERE student_id = $1 AND menu_item_id = $2',
         [studentId, menuItemId]
       );
       return res.json({ message: 'Item removed from cart', cart: { menuItemId, quantity: 0 } });
     }
 
     // Check stock
-    const [menuItems] = await pool.execute(
-      'SELECT quantity FROM menu_items WHERE id = ?',
+    const result = await pool.query(
+      'SELECT quantity FROM menu_items WHERE id = $1',
       [menuItemId]
     );
 
-    if (menuItems.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ message: 'Menu item not found' });
     }
 
-    const stock = menuItems[0].quantity;
+    const stock = result.rows[0].quantity;
 
     if (quantity > stock) {
       return res.status(400).json({
@@ -152,8 +153,8 @@ const updateCartItem = async (req, res) => {
       });
     }
 
-    await pool.execute(
-      'UPDATE cart_items SET quantity = ?, updated_at = NOW() WHERE student_id = ? AND menu_item_id = ?',
+    await pool.query(
+      'UPDATE cart_items SET quantity = $1, updated_at = NOW() WHERE student_id = $2 AND menu_item_id = $3',
       [quantity, studentId, menuItemId]
     );
 

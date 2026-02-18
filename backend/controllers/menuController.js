@@ -2,10 +2,11 @@ const pool = require('../config/database');
 
 const getMenuItems = async (req, res) => {
   try {
-    // Fetch all menu items that are available (is_available = 1 or TRUE)
-    const [menuItems] = await pool.execute(
-      'SELECT * FROM menu_items WHERE is_available = 1 ORDER BY category, name'
+    // Fetch all menu items that are available
+    const result = await pool.query(
+      'SELECT * FROM menu_items WHERE is_available = TRUE ORDER BY category, name'
     );
+    const menuItems = result.rows;
 
     // Process menu items to add stock status
     const processedItems = menuItems.map(item => {
@@ -30,7 +31,7 @@ const getMenuItems = async (req, res) => {
         lowStockThreshold: item.low_stock_threshold,
         stockStatus: stockStatus,
         imageUrl: item.image_url,
-        isAvailable: item.is_available === 1,
+        isAvailable: item.is_available === true,
         createdAt: item.created_at,
         updatedAt: item.updated_at
       };
@@ -56,15 +57,15 @@ const addMenuItem = async (req, res) => {
     const { name, description, price, category, quantity, lowStockThreshold } = req.body;
     const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
 
-    const [result] = await pool.execute(
-      'INSERT INTO menu_items (name, description, price, category, quantity, low_stock_threshold, image_url) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    const result = await pool.query(
+      'INSERT INTO menu_items (name, description, price, category, quantity, low_stock_threshold, image_url) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id',
       [name, description, price, category, quantity || 0, lowStockThreshold || 10, imageUrl]
     );
 
     res.status(201).json({
       success: true,
       message: 'Menu item added successfully',
-      itemId: result.insertId
+      itemId: result.rows[0].id
     });
   } catch (error) {
     console.error('Add menu item error:', error);
@@ -77,20 +78,20 @@ const updateMenuItem = async (req, res) => {
     const { id } = req.params;
     const { name, description, price, category, quantity, lowStockThreshold, isAvailable } = req.body;
 
-    let query = 'UPDATE menu_items SET name=?, description=?, price=?, category=?, quantity=?, low_stock_threshold=?, is_available=?';
+    let query = 'UPDATE menu_items SET name=$1, description=$2, price=$3, category=$4, quantity=$5, low_stock_threshold=$6, is_available=$7';
     let params = [name, description, price, category, quantity, lowStockThreshold, isAvailable === 'true' || isAvailable === true];
 
     if (req.file) {
-      query += ', image_url=?';
+      query += `, image_url=$${params.length + 1}`;
       params.push(`/uploads/${req.file.filename}`);
     }
 
-    query += ' WHERE id=?';
+    query += ` WHERE id=$${params.length + 1}`;
     params.push(id);
 
-    const [result] = await pool.execute(query, params);
+    const result = await pool.query(query, params);
 
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Item not found' });
     }
 
@@ -105,11 +106,9 @@ const deleteMenuItem = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Soft delete or hard delete? User said "remove", but usually soft delete is safer.
-    // Let's go with hard delete for now as requested "remove an item".
-    const [result] = await pool.execute('DELETE FROM menu_items WHERE id = ?', [id]);
+    const result = await pool.query('DELETE FROM menu_items WHERE id = $1', [id]);
 
-    if (result.affectedRows === 0) {
+    if (result.rowCount === 0) {
       return res.status(404).json({ success: false, message: 'Item not found' });
     }
 

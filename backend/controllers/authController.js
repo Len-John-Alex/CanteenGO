@@ -11,10 +11,11 @@ const loginStudent = async (req, res) => {
       return res.status(400).json({ message: 'Student ID and password are required' });
     }
 
-    const [students] = await pool.execute(
-      'SELECT * FROM students WHERE student_id = ?',
+    const result = await pool.query(
+      'SELECT * FROM students WHERE UPPER(student_id) = UPPER($1)',
       [studentId]
     );
+    const students = result.rows;
 
     if (students.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -67,10 +68,11 @@ const loginStaff = async (req, res) => {
       return res.status(400).json({ message: 'Staff ID and password are required' });
     }
 
-    const [staff] = await pool.execute(
-      'SELECT * FROM staff WHERE staff_id = ?',
+    const result = await pool.query(
+      'SELECT * FROM staff WHERE UPPER(staff_id) = UPPER($1)',
       [staffId]
     );
+    const staff = result.rows;
 
     if (staff.length === 0) {
       return res.status(401).json({ message: 'Invalid credentials' });
@@ -122,10 +124,11 @@ const registerStudent = async (req, res) => {
     }
 
     // Check if student already exists
-    const [existingStudents] = await pool.execute(
-      'SELECT * FROM students WHERE student_id = ? OR email = ?',
+    const resultExisting = await pool.query(
+      'SELECT * FROM students WHERE UPPER(student_id) = UPPER($1) OR UPPER(email) = UPPER($2)',
       [studentId, email]
     );
+    const existingStudents = resultExisting.rows;
 
     if (existingStudents.length > 0) {
       return res.status(409).json({
@@ -147,22 +150,23 @@ const registerStudent = async (req, res) => {
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Insert new student with is_verified = false
-    const [result] = await pool.execute(
-      'INSERT INTO students (student_id, name, email, password, is_verified, verification_code) VALUES (?, ?, ?, ?, FALSE, ?)',
+    const result = await pool.query(
+      'INSERT INTO students (student_id, name, email, password, is_verified, verification_code) VALUES ($1, $2, $3, $4, FALSE, $5) RETURNING id',
       [studentId, name, email, hashedPassword, verificationCode]
     );
+    const insertId = result.rows[0].id;
 
     // Send verification email
     await sendVerificationEmail(email, verificationCode);
 
     // Generate token for auto-login after registration
-    const token = generateToken(result.insertId, 'student');
+    const token = generateToken(insertId, 'student');
 
     res.status(201).json({
       message: 'Registration successful',
       token,
       user: {
-        id: result.insertId,
+        id: insertId,
         studentId: studentId,
         name: name,
         email: email,
@@ -172,8 +176,8 @@ const registerStudent = async (req, res) => {
   } catch (error) {
     console.error('Student registration error:', error);
 
-    // Handle duplicate key error
-    if (error.code === 'ER_DUP_ENTRY') {
+    // Handle duplicate key error (PostgreSQL error code for unique violation is 23505)
+    if (error.code === '23505') {
       return res.status(409).json({
         message: 'Student ID or Email already registered.'
       });
@@ -195,10 +199,11 @@ const registerStaff = async (req, res) => {
     }
 
     // Check if staff already exists
-    const [existingStaff] = await pool.execute(
-      'SELECT * FROM staff WHERE staff_id = ? OR email = ?',
+    const resultExisting = await pool.query(
+      'SELECT * FROM staff WHERE UPPER(staff_id) = UPPER($1) OR UPPER(email) = UPPER($2)',
       [staffId, email]
     );
+    const existingStaff = resultExisting.rows;
 
     if (existingStaff.length > 0) {
       return res.status(409).json({
@@ -213,10 +218,11 @@ const registerStaff = async (req, res) => {
     const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
 
     // Insert new staff with is_verified = false
-    const [result] = await pool.execute(
-      'INSERT INTO staff (staff_id, name, email, password, is_verified, verification_code) VALUES (?, ?, ?, ?, FALSE, ?)',
+    const result = await pool.query(
+      'INSERT INTO staff (staff_id, name, email, password, is_verified, verification_code) VALUES ($1, $2, $3, $4, FALSE, $5) RETURNING id',
       [staffId, name, email, hashedPassword, verificationCode]
     );
+    const insertId = result.rows[0].id;
 
     // Send verification email
     await sendVerificationEmail(email, verificationCode);
@@ -224,7 +230,7 @@ const registerStaff = async (req, res) => {
     res.status(201).json({
       message: 'Registration successful. Please verify your email.',
       user: {
-        id: result.insertId,
+        id: insertId,
         staffId: staffId,
         name: name,
         email: email,
@@ -233,7 +239,7 @@ const registerStaff = async (req, res) => {
     });
   } catch (error) {
     console.error('Staff registration error:', error);
-    if (error.code === 'ER_DUP_ENTRY') {
+    if (error.code === '23505') {
       return res.status(409).json({
         message: 'Staff ID or Email already registered.'
       });
@@ -256,16 +262,16 @@ const verifyEmail = async (req, res) => {
     let idColumn;
 
     if (studentId) {
-      const [students] = await pool.execute('SELECT * FROM students WHERE student_id = ?', [studentId]);
-      if (students.length === 0) return res.status(404).json({ message: 'Student not found' });
-      user = students[0];
+      const result = await pool.query('SELECT * FROM students WHERE student_id = $1', [studentId]);
+      if (result.rows.length === 0) return res.status(404).json({ message: 'Student not found' });
+      user = result.rows[0];
       role = 'student';
       tableName = 'students';
       idColumn = 'student_id';
     } else {
-      const [staff] = await pool.execute('SELECT * FROM staff WHERE staff_id = ?', [staffId]);
-      if (staff.length === 0) return res.status(404).json({ message: 'Staff member not found' });
-      user = staff[0];
+      const result = await pool.query('SELECT * FROM staff WHERE staff_id = $1', [staffId]);
+      if (result.rows.length === 0) return res.status(404).json({ message: 'Staff member not found' });
+      user = result.rows[0];
       role = 'staff';
       tableName = 'staff';
       idColumn = 'staff_id';
@@ -281,8 +287,8 @@ const verifyEmail = async (req, res) => {
     }
 
     // Mark as verified
-    await pool.execute(
-      `UPDATE ${tableName} SET is_verified = TRUE, verification_code = NULL WHERE id = ?`,
+    await pool.query(
+      `UPDATE ${tableName} SET is_verified = TRUE, verification_code = NULL WHERE id = $1`,
       [user.id]
     );
 
@@ -317,30 +323,30 @@ const getCurrentUser = async (req, res) => {
     const { id, role } = req.user;
 
     if (role === 'student') {
-      const [students] = await pool.execute(
-        'SELECT id, student_id, name, email, is_deleted FROM students WHERE id = ?',
+      const result = await pool.query(
+        'SELECT id, student_id, name, email, is_deleted FROM students WHERE id = $1',
         [id]
       );
 
-      if (students.length > 0) {
-        if (students[0].is_deleted) {
+      if (result.rows.length > 0) {
+        if (result.rows[0].is_deleted) {
           return res.status(403).json({ message: 'Account has been deactivated.' });
         }
         return res.json({
           user: {
-            ...students[0],
+            ...result.rows[0],
             role: 'student'
           }
         });
       }
-      const [staff] = await pool.execute(
-        'SELECT id, staff_id, name, email FROM staff WHERE id = ?',
+      const resultStaff = await pool.query(
+        'SELECT id, staff_id, name, email FROM staff WHERE id = $1',
         [id]
       );
-      if (staff.length > 0) {
+      if (resultStaff.rows.length > 0) {
         return res.json({
           user: {
-            ...staff[0],
+            ...resultStaff.rows[0],
             role: 'staff'
           }
         });

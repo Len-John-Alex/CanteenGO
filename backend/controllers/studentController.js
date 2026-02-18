@@ -3,8 +3,6 @@ const pool = require('../config/database');
 // Get all students (for staff)
 const getAllStudents = async (req, res) => {
     try {
-        // Query to get student details and order stats
-        // We exclude deleted students
         const query = `
             SELECT 
                 s.id, 
@@ -22,8 +20,8 @@ const getAllStudents = async (req, res) => {
             ORDER BY s.created_at DESC
         `;
 
-        const [students] = await pool.execute(query);
-        res.json(students);
+        const result = await pool.query(query);
+        res.json(result.rows);
     } catch (error) {
         console.error('Error fetching students:', error);
         res.status(500).json({ message: 'Server error fetching students' });
@@ -35,10 +33,8 @@ const getStudentHistory = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Ensure student exists (even if deleted, we might want to see history, but typically we manage active ones)
-        // Let's allow viewing history for deleted ones if needed, but for now just check existence
-        const [studentCheck] = await pool.execute('SELECT name FROM students WHERE id = ?', [id]);
-        if (studentCheck.length === 0) {
+        const studentCheck = await pool.query('SELECT name FROM students WHERE id = $1', [id]);
+        if (studentCheck.rows.length === 0) {
             return res.status(404).json({ message: 'Student not found' });
         }
 
@@ -52,14 +48,14 @@ const getStudentHistory = async (req, res) => {
                 ts.end_time
             FROM orders o
             LEFT JOIN time_slots ts ON o.slot_id = ts.slot_id
-            WHERE o.student_id = ?
+            WHERE o.student_id = $1
             ORDER BY o.created_at DESC
         `;
 
-        const [orders] = await pool.execute(query, [id]);
+        const result = await pool.query(query, [id]);
         res.json({
-            studentName: studentCheck[0].name,
-            orders
+            studentName: studentCheck.rows[0].name,
+            orders: result.rows
         });
     } catch (error) {
         console.error('Error fetching student history:', error);
@@ -69,40 +65,37 @@ const getStudentHistory = async (req, res) => {
 
 // Soft delete student
 const deleteStudent = async (req, res) => {
-    const connection = await pool.getConnection();
+    const client = await pool.connect();
     try {
-        await connection.beginTransaction();
+        await client.query('BEGIN');
 
         const { id } = req.params;
 
-        // Check if student exists
-        const [students] = await connection.execute('SELECT * FROM students WHERE id = ?', [id]);
-        if (students.length === 0) {
-            await connection.rollback();
+        const studentsResult = await client.query('SELECT * FROM students WHERE id = $1', [id]);
+        if (studentsResult.rows.length === 0) {
+            await client.query('ROLLBACK');
             return res.status(404).json({ message: 'Student not found' });
         }
 
-        const student = students[0];
+        const student = studentsResult.rows[0];
         const timestamp = Date.now();
 
-        // Anonymize/Rename to free up unique constraints
         const newStudentId = `${student.student_id}_deleted_${timestamp}`;
         const newEmail = student.email ? `${student.email}_deleted_${timestamp}` : null;
 
-        // Perform soft delete
-        await connection.execute(
-            'UPDATE students SET is_deleted = TRUE, student_id = ?, email = ? WHERE id = ?',
+        await client.query(
+            'UPDATE students SET is_deleted = TRUE, student_id = $1, email = $2 WHERE id = $3',
             [newStudentId, newEmail, id]
         );
 
-        await connection.commit();
+        await client.query('COMMIT');
         res.json({ message: 'Student deleted successfully' });
     } catch (error) {
-        await connection.rollback();
+        await client.query('ROLLBACK');
         console.error('Error deleting student:', error);
         res.status(500).json({ message: 'Server error deleting student' });
     } finally {
-        connection.release();
+        client.release();
     }
 };
 

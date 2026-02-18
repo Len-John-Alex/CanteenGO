@@ -1,5 +1,5 @@
 CREATE TABLE IF NOT EXISTS time_slots (
-    slot_id INT PRIMARY KEY AUTO_INCREMENT,
+    slot_id SERIAL PRIMARY KEY,
     start_time TIME NOT NULL,
     end_time TIME NOT NULL,
     max_orders INT NOT NULL,

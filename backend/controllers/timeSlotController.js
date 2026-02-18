@@ -10,37 +10,33 @@ const addTimeSlot = async (req, res) => {
     try {
         const { start_time, end_time, max_orders } = req.body;
 
-        // Time Validation: ensure start < end
         if (start_time >= end_time) {
             return res.status(400).json({ message: 'Start time must be before end time' });
         }
 
-        // Check for overlaps with ACTIVE slots
-        // Overlap condition: (StartA < EndB) and (EndA > StartB)
-        const [existingSlots] = await pool.execute(
+        const existingSlotsResult = await pool.query(
             `SELECT * FROM time_slots 
              WHERE is_active = TRUE 
-             AND start_time < ? 
-             AND end_time > ?`,
+             AND start_time < $1 
+             AND end_time > $2`,
             [end_time, start_time]
         );
 
-        if (existingSlots.length > 0) {
+        if (existingSlotsResult.rows.length > 0) {
             return res.status(409).json({
                 message: 'New slot overlaps with an existing active slot',
-                conflictingSlot: existingSlots[0]
+                conflictingSlot: existingSlotsResult.rows[0]
             });
         }
 
-        // Insert
-        const [result] = await pool.execute(
-            'INSERT INTO time_slots (start_time, end_time, max_orders) VALUES (?, ?, ?)',
+        const result = await pool.query(
+            'INSERT INTO time_slots (start_time, end_time, max_orders) VALUES ($1, $2, $3) RETURNING slot_id',
             [start_time, end_time, max_orders]
         );
 
         res.status(201).json({
             message: 'Time slot added successfully',
-            slotId: result.insertId,
+            slotId: result.rows[0].slot_id,
             slot: { start_time, end_time, max_orders }
         });
 
@@ -64,27 +60,26 @@ const updateTimeSlot = async (req, res) => {
             return res.status(400).json({ message: 'At least one field (max_orders, is_active) must be provided' });
         }
 
-        // Build query dynamically
         let query = 'UPDATE time_slots SET ';
         const params = [];
         const updates = [];
 
         if (max_orders !== undefined) {
-            updates.push('max_orders = ?');
             params.push(max_orders);
+            updates.push(`max_orders = $${params.length}`);
         }
 
         if (is_active !== undefined) {
-            updates.push('is_active = ?');
             params.push(is_active);
+            updates.push(`is_active = $${params.length}`);
         }
 
-        query += updates.join(', ') + ' WHERE slot_id = ?';
         params.push(id);
+        query += updates.join(', ') + ` WHERE slot_id = $${params.length}`;
 
-        const [result] = await pool.execute(query, params);
+        const result = await pool.query(query, params);
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Time slot not found' });
         }
 
@@ -98,8 +93,8 @@ const updateTimeSlot = async (req, res) => {
 
 const getTimeSlots = async (req, res) => {
     try {
-        const [slots] = await pool.execute('SELECT * FROM time_slots ORDER BY start_time');
-        res.json(slots);
+        const result = await pool.query('SELECT * FROM time_slots ORDER BY start_time');
+        res.json(result.rows);
     } catch (error) {
         console.error('Get time slots error:', error);
         res.status(500).json({ message: 'Server error retrieving time slots' });
@@ -108,7 +103,7 @@ const getTimeSlots = async (req, res) => {
 
 const getAvailableTimeSlots = async (req, res) => {
     try {
-        const [slots] = await pool.execute(`
+        const result = await pool.query(`
             SELECT 
                 slot_id, 
                 start_time, 
@@ -121,7 +116,7 @@ const getAvailableTimeSlots = async (req, res) => {
             ORDER BY start_time
         `);
 
-        const formattedSlots = slots.map(slot => ({
+        const formattedSlots = result.rows.map(slot => ({
             ...slot,
             status: slot.remaining_capacity > 0 ? 'AVAILABLE' : 'FULL'
         }));
@@ -137,24 +132,23 @@ const deleteTimeSlot = async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Check if there are orders for this slot
-        const [orders] = await pool.execute(
-            'SELECT COUNT(*) as count FROM orders WHERE slot_id = ?',
+        const ordersResult = await pool.query(
+            'SELECT COUNT(*) as count FROM orders WHERE slot_id = $1',
             [id]
         );
 
-        if (orders[0].count > 0) {
+        if (parseInt(ordersResult.rows[0].count) > 0) {
             return res.status(400).json({
                 message: 'Cannot delete time slot because it has existing orders. Try deactivating it instead.'
             });
         }
 
-        const [result] = await pool.execute(
-            'DELETE FROM time_slots WHERE slot_id = ?',
+        const result = await pool.query(
+            'DELETE FROM time_slots WHERE slot_id = $1',
             [id]
         );
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Time slot not found' });
         }
 
@@ -168,12 +162,12 @@ const deleteTimeSlot = async (req, res) => {
 const resetTimeSlotCount = async (req, res) => {
     try {
         const { id } = req.params;
-        const [result] = await pool.execute(
-            'UPDATE time_slots SET current_orders = 0 WHERE slot_id = ?',
+        const result = await pool.query(
+            'UPDATE time_slots SET current_orders = 0 WHERE slot_id = $1',
             [id]
         );
 
-        if (result.affectedRows === 0) {
+        if (result.rowCount === 0) {
             return res.status(404).json({ message: 'Time slot not found' });
         }
 

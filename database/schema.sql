@@ -1,31 +1,50 @@
--- Database schema for CanteenGO
+-- Database schema for CanteenGO (PostgreSQL version)
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO postgres;
+GRANT ALL ON SCHEMA public TO public;
+
+-- Function to handle updated_at
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
 -- Students table
 CREATE TABLE IF NOT EXISTS students (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   student_id VARCHAR(50) UNIQUE NOT NULL,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100),
   password VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+DROP TRIGGER IF EXISTS update_students_updated_at ON students;
+CREATE TRIGGER update_students_updated_at BEFORE UPDATE ON students FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- Staff table
 CREATE TABLE IF NOT EXISTS staff (
-  id INT AUTO_INCREMENT PRIMARY KEY,
+  id SERIAL PRIMARY KEY,
   staff_id VARCHAR(50) UNIQUE NOT NULL,
   name VARCHAR(100) NOT NULL,
   email VARCHAR(100),
   password VARCHAR(255) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+DROP TRIGGER IF EXISTS update_staff_updated_at ON staff;
+CREATE TRIGGER update_staff_updated_at BEFORE UPDATE ON staff FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
 
 -- Menu items table
 CREATE TABLE IF NOT EXISTS menu_items (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(100) NOT NULL,
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(100) UNIQUE NOT NULL,
   description TEXT,
   price DECIMAL(10, 2) NOT NULL,
   category VARCHAR(50),
@@ -34,21 +53,8 @@ CREATE TABLE IF NOT EXISTS menu_items (
   image_url VARCHAR(255),
   is_available BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Sample data will be inserted using the seed.js script
--- Run: node database/seed.js (from project root)
-
--- Time slots table
-CREATE TABLE IF NOT EXISTS time_slots (
-    slot_id INT PRIMARY KEY AUTO_INCREMENT,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
-    max_orders INT NOT NULL,
-    current_orders INT DEFAULT 0,
-    is_active BOOLEAN DEFAULT TRUE,
-    CONSTRAINT chk_time_order CHECK (start_time < end_time),
-    CONSTRAINT chk_max_orders CHECK (max_orders >= 0),
-    CONSTRAINT chk_current_orders CHECK (current_orders >= 0 AND current_orders <= max_orders)
-);
+DROP TRIGGER IF EXISTS update_menu_items_updated_at ON menu_items;
+CREATE TRIGGER update_menu_items_updated_at BEFORE UPDATE ON menu_items FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
