@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { menuService } from '../services/menuService';
 import { useNotification } from '../context/NotificationContext';
 import { useNavigate } from 'react-router-dom';
+import { BASE_URL } from '../services/authService';
 import './ManageMenu.css';
 
 const ManageMenu = () => {

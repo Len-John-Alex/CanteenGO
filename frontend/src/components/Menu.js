@@ -4,6 +4,7 @@ import { cartService } from '../services/cartService';
 import { favouriteService } from '../services/favouriteService';
 import { useAuth } from '../context/AuthContext';
 import { useNotification } from '../context/NotificationContext';
+import { BASE_URL } from '../services/authService';
 import './Menu.css';
 
 const Menu = () => {
