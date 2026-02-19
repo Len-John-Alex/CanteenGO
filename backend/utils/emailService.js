@@ -1,6 +1,23 @@
 const nodemailer = require('nodemailer');
 
-const createTransporter = () => {
+// This new createTransporter is specific to Gmail SMTP for the refactored sendVerificationEmail
+const createTransporter = (port, secure) => {
+    return nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: port,
+        secure: secure,
+        auth: {
+            user: process.env.EMAIL_USER,
+            pass: process.env.EMAIL_PASS
+        },
+        tls: {
+            rejectUnauthorized: false
+        }
+    });
+};
+
+// The original generic createTransporter is renamed and kept for sendWelcomeEmail
+const createGenericTransporter = () => {
     console.log('Creating mail transporter...');
 
     // Explicit Gmail configuration for better reliability on cloud platforms like Render
@@ -58,16 +75,10 @@ const createTransporter = () => {
 
 const sendVerificationEmail = async (to, code) => {
     console.log(`Attempting to send verification email to: ${to}`);
-    const transporter = createTransporter();
 
-    if (!transporter) {
-        console.log('==========================================');
-        console.log('EMAIL SERVICE NOT CONFIGURED - CHECK ENV VARS');
-        console.log(`Service: ${process.env.EMAIL_SERVICE}`);
-        console.log(`User: ${process.env.EMAIL_USER}`);
-        console.log(`Pass defined: ${!!process.env.EMAIL_PASS}`);
-        console.log('==========================================');
-        return true;
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+        console.error('EMAIL_USER or EMAIL_PASS not defined in environment variables');
+        return false;
     }
 
     const mailOptions = {
@@ -85,29 +96,35 @@ const sendVerificationEmail = async (to, code) => {
         `
     };
 
+    // Try Port 465 first
     try {
-        console.log('Transporter created, sending mail...');
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Verification email sent successfully:', info.messageId);
+        console.log('Trying Port 465 (Secure)...');
+        const transporter465 = createTransporter(465, true);
+        const info = await transporter465.sendMail(mailOptions);
+        console.log('Verification email sent successfully via Port 465:', info.messageId);
         return true;
     } catch (error) {
-        console.error('Error sending verification email:', error);
-        console.log('SMTP Config used:', {
-            service: process.env.EMAIL_SERVICE,
-            user: process.env.EMAIL_USER,
-            passLength: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0
-        });
+        console.warn('Port 465 failed, trying Port 587 (STARTTLS)...', error.message);
 
-        console.log('==========================================');
-        console.log('EMAIL SENDING FAILED - FALLBACK LOG');
-        console.log(`Verification Code: ${code}`);
-        console.log('==========================================');
-        return false;
+        // Try Port 587 as fallback
+        try {
+            const transporter587 = createTransporter(587, false);
+            const info = await transporter587.sendMail(mailOptions);
+            console.log('Verification email sent successfully via Port 587:', info.messageId);
+            return true;
+        } catch (error587) {
+            console.error('Final email error (Both 465 and 587 failed):', error587);
+            console.log('==========================================');
+            console.log('EMAIL SENDING FAILED - FALLBACK LOG');
+            console.log(`Verification Code: ${code}`);
+            console.log('==========================================');
+            return false;
+        }
     }
 };
 
 const sendWelcomeEmail = async (to, name, role = 'student') => {
-    const transporter = createTransporter();
+    const transporter = createGenericTransporter(); // Use the generic transporter
 
     if (!transporter) {
         console.log('==========================================');
