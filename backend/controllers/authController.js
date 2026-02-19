@@ -145,6 +145,8 @@ const registerStudent = async (req, res) => {
       [studentId, name, email, hashedPassword]
     );
 
+    const insertId = result.rows[0].id;
+
     // Generate token for auto-login after registration
     const token = generateToken(insertId, 'student');
 
