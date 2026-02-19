@@ -35,16 +35,17 @@ const createTransporter = () => {
 };
 
 const sendVerificationEmail = async (to, code) => {
+    console.log(`Attempting to send verification email to: ${to}`);
     const transporter = createTransporter();
 
     if (!transporter) {
         console.log('==========================================');
-        console.log('EMAIL SERVICE NOT CONFIGURED');
-        console.log(`To: ${to}`);
-        console.log(`Verification Code: ${code}`);
-        console.log('Configure EMAIL_SERVICE/USER/PASS in .env to send real emails.');
+        console.log('EMAIL SERVICE NOT CONFIGURED - CHECK ENV VARS');
+        console.log(`Service: ${process.env.EMAIL_SERVICE}`);
+        console.log(`User: ${process.env.EMAIL_USER}`);
+        console.log(`Pass defined: ${!!process.env.EMAIL_PASS}`);
         console.log('==========================================');
-        return true; // Return true so flow doesn't break
+        return true;
     }
 
     const mailOptions = {
@@ -54,7 +55,7 @@ const sendVerificationEmail = async (to, code) => {
         html: `
             <div style="font-family: Arial, sans-serif; padding: 20px;">
                 <h2>Welcome to CanteenGO!</h2>
-                <p>Please verifying your email address using the code below:</p>
+                <p>Please verify your email address using the code below:</p>
                 <h1 style="color: #4CAF50; font-size: 32px; letter-spacing: 5px;">${code}</h1>
                 <p>This code will expire in 10 minutes.</p>
                 <p>If you did not sign up for this account, please ignore this email.</p>
@@ -63,16 +64,17 @@ const sendVerificationEmail = async (to, code) => {
     };
 
     try {
-        await transporter.sendMail(mailOptions);
-        console.log(`Verification email sent to ${to}`);
+        console.log('Transporter created, sending mail...');
+        const info = await transporter.sendMail(mailOptions);
+        console.log('Verification email sent successfully:', info.messageId);
         return true;
     } catch (error) {
-        console.error('Error sending email:', error);
-        // Fallback to console log on error so development isn't blocked
-
-
-
-
+        console.error('Error sending verification email:', error);
+        console.log('SMTP Config used:', {
+            service: process.env.EMAIL_SERVICE,
+            user: process.env.EMAIL_USER,
+            passLength: process.env.EMAIL_PASS ? process.env.EMAIL_PASS.length : 0
+        });
 
         console.log('==========================================');
         console.log('EMAIL SENDING FAILED - FALLBACK LOG');
