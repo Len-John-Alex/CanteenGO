@@ -209,8 +209,12 @@ const registerStaff = async (req, res) => {
     );
     const insertId = result.rows[0].id;
 
+    // Generate token for auto-login after registration
+    const token = generateToken(insertId, 'staff');
+
     res.status(201).json({
-      message: 'Registration successful. You can now login.',
+      message: 'Registration successful',
+      token,
       user: {
         id: insertId,
         staffId: staffId,

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../services/authService';
+import { useAuth } from '../context/AuthContext';
 import './RegisterPage.css'; // Reusing styles
 
 const StaffRegister = () => {
@@ -13,6 +14,9 @@ const StaffRegister = () => {
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+    const { login } = useAuth();
     const navigate = useNavigate();
 
     const handleChange = (e) => {
@@ -48,15 +52,20 @@ const StaffRegister = () => {
         }
 
         try {
-            await authService.registerStaff(
+            const response = await authService.registerStaff(
                 formData.staffId,
                 formData.name,
                 formData.email,
                 formData.password
             );
 
-            // Redirect to login after registration (OTP removed)
-            navigate('/login', { state: { message: 'Registration successful. Please login.' } });
+            // Auto-login after registration
+            if (response.token && response.user) {
+                login(response.token, response.user);
+                navigate('/dashboard');
+            } else {
+                navigate('/login', { state: { message: 'Registration successful. Please login.' } });
+            }
 
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed. Please try again.');
@@ -113,33 +122,53 @@ const StaffRegister = () => {
                         />
                     </div>
 
-                    <div className="form-group">
+                    <div className="form-group password-group">
                         <label htmlFor="password">Password *</label>
-                        <input
-                            type="password"
-                            id="password"
-                            name="password"
-                            value={formData.password}
-                            onChange={handleChange}
-                            placeholder="Enter password (min 6 characters)"
-                            disabled={loading}
-                            required
-                            minLength={6}
-                        />
+                        <div className="password-input-wrapper">
+                            <input
+                                type={showPassword ? "text" : "password"}
+                                id="password"
+                                name="password"
+                                value={formData.password}
+                                onChange={handleChange}
+                                placeholder="Enter password (min 6 characters)"
+                                disabled={loading}
+                                required
+                                minLength={6}
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle"
+                                onClick={() => setShowPassword(!showPassword)}
+                                tabIndex="-1"
+                            >
+                                {showPassword ? "👁️" : "🙈"}
+                            </button>
+                        </div>
                     </div>
 
-                    <div className="form-group">
+                    <div className="form-group password-group">
                         <label htmlFor="confirmPassword">Confirm Password *</label>
-                        <input
-                            type="password"
-                            id="confirmPassword"
-                            name="confirmPassword"
-                            value={formData.confirmPassword}
-                            onChange={handleChange}
-                            placeholder="Confirm your password"
-                            disabled={loading}
-                            required
-                        />
+                        <div className="password-input-wrapper">
+                            <input
+                                type={showConfirmPassword ? "text" : "password"}
+                                id="confirmPassword"
+                                name="confirmPassword"
+                                value={formData.confirmPassword}
+                                onChange={handleChange}
+                                placeholder="Confirm your password"
+                                disabled={loading}
+                                required
+                            />
+                            <button
+                                type="button"
+                                className="password-toggle"
+                                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                tabIndex="-1"
+                            >
+                                {showConfirmPassword ? "👁️" : "🙈"}
+                            </button>
+                        </div>
                     </div>
 
                     {error && <div className="error-message">{error}</div>}
