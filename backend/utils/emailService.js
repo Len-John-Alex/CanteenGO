@@ -12,7 +12,9 @@ const createGmailTransporter = (port, secure) => {
         },
         tls: {
             rejectUnauthorized: false
-        }
+        },
+        // Force IPv4 as cloud providers sometimes have IPv6 routing issues
+        family: 4
     });
 };
 
@@ -25,31 +27,37 @@ const sendEmailWithFallback = async (mailOptions) => {
 
     // Try Port 465 first (SSL)
     try {
-        console.log(`Attempting to send email to ${mailOptions.to} via Port 465...`);
+        console.log(`Port 465: Attempting SSL connection to ${mailOptions.to}...`);
         const transporter465 = createGmailTransporter(465, true);
         const info = await transporter465.sendMail(mailOptions);
-        console.log('Email sent successfully via Port 465:', info.messageId);
+        console.log('Success: Email sent via Port 465');
         return true;
     } catch (error) {
-        console.warn('Port 465 failed, trying Port 587 (STARTTLS)...', error.message);
+        console.warn(`Port 465 Failed (${error.code}): ${error.message}`);
+        console.log('Switches: Falling back to Port 587 (STARTTLS)...');
 
         // Try Port 587 as fallback (STARTTLS)
         try {
+            console.log('Port 587: Attempting STARTTLS connection...');
             const transporter587 = createGmailTransporter(587, false);
             const info = await transporter587.sendMail(mailOptions);
-            console.log('Email sent successfully via Port 587:', info.messageId);
+            console.log('Success: Email sent via Port 587');
             return true;
         } catch (error587) {
-            console.error('Final email error (Both 464 and 587 failed):', error587.message);
+            console.error(`Port 587 Failed (${error587.code}): ${error587.message}`);
 
-            // Fallback log for development/debugging if both fail
+            console.log('==========================================');
+            console.log('CRITICAL: ALL SMTP PORTS ARE BLOCKED BY RENDER');
+            console.log('Render documentation states that SMTP is blocked for new accounts.');
+            console.log('You must contact Render Support to unblock outgoing SMTP.');
+            console.log('--- FALLBACK VERIFICATION ---');
+            console.log(`To: ${mailOptions.to}`);
             if (mailOptions.subject.includes('Verification')) {
-                console.log('==========================================');
-                console.log('EMAIL SENDING FAILED - FALLBACK LOG');
-                console.log(`Recipient: ${mailOptions.to}`);
-                // Extract code from HTML if possible or just log failure
-                console.log('==========================================');
+                // If it's a verification email, the code is in the HTML
+                const codeMatch = mailOptions.html.match(/>(\d{6})</);
+                if (codeMatch) console.log(`CODE: ${codeMatch[1]}`);
             }
+            console.log('==========================================');
             return false;
         }
     }
