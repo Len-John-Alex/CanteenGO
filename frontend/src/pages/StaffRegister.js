@@ -55,8 +55,8 @@ const StaffRegister = () => {
                 formData.password
             );
 
-            // Redirect to verification after registration
-            navigate('/staff-verify', { state: { staffId: formData.staffId } });
+            // Redirect to login after registration (OTP removed)
+            navigate('/login', { state: { message: 'Registration successful. Please login.' } });
 
         } catch (err) {
             setError(err.response?.data?.message || 'Registration failed. Please try again.');

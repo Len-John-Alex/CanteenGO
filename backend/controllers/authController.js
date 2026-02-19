@@ -33,24 +33,7 @@ const loginStudent = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check if verified
-    if (!student.is_verified) {
-      console.log('Login failed: Account not verified ->', studentId);
-
-      // Resend code to help trigger debug logs and help the user
-      try {
-        console.log('Resending verification email for unverified login...');
-        await sendVerificationEmail(student.email, student.verification_code);
-      } catch (err) {
-        console.error('Failed to resend during login:', err);
-      }
-
-      return res.status(403).json({
-        message: 'Email not verified. A new code has been sent to your email.',
-        isNotVerified: true,
-        studentId: student.student_id
-      });
-    }
+    // Verification check removed as per user request
 
     // Check if soft deleted
     if (student.is_deleted) {
@@ -102,19 +85,7 @@ const loginStaff = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check if verified
-    if (!staffMember.is_verified) {
-      try {
-        await sendVerificationEmail(staffMember.email, staffMember.verification_code);
-      } catch (err) {
-        console.error('Failed to resend during login:', err);
-      }
-      return res.status(403).json({
-        message: 'Email not verified. A new code has been sent to your email.',
-        isNotVerified: true,
-        staffId: staffMember.staff_id
-      });
-    }
+    // Verification check removed as per user request
 
     const token = generateToken(staffMember.id, 'staff');
 
@@ -168,18 +139,11 @@ const registerStudent = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate verification code (6 digits)
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Insert new student with is_verified = false
+    // Insert new student with is_verified = true
     const result = await pool.query(
-      'INSERT INTO students (student_id, name, email, password, is_verified, verification_code) VALUES ($1, $2, $3, $4, FALSE, $5) RETURNING id',
-      [studentId, name, email, hashedPassword, verificationCode]
+      'INSERT INTO students (student_id, name, email, password, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING id',
+      [studentId, name, email, hashedPassword]
     );
-    const insertId = result.rows[0].id;
-
-    // Send verification email
-    await sendVerificationEmail(email, verificationCode);
 
     // Generate token for auto-login after registration
     const token = generateToken(insertId, 'student');
@@ -236,21 +200,15 @@ const registerStaff = async (req, res) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Generate verification code (6 digits)
-    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Insert new staff with is_verified = false
+    // Insert new staff with is_verified = true
     const result = await pool.query(
-      'INSERT INTO staff (staff_id, name, email, password, is_verified, verification_code) VALUES ($1, $2, $3, $4, FALSE, $5) RETURNING id',
-      [staffId, name, email, hashedPassword, verificationCode]
+      'INSERT INTO staff (staff_id, name, email, password, is_verified) VALUES ($1, $2, $3, $4, TRUE) RETURNING id',
+      [staffId, name, email, hashedPassword]
     );
     const insertId = result.rows[0].id;
 
-    // Send verification email
-    await sendVerificationEmail(email, verificationCode);
-
     res.status(201).json({
-      message: 'Registration successful. Please verify your email.',
+      message: 'Registration successful. You can now login.',
       user: {
         id: insertId,
         staffId: staffId,

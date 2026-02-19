@@ -57,8 +57,8 @@ const RegisterPage = () => {
         formData.password
       );
 
-      // Redirect to verification after registration
-      navigate('/verify', { state: { studentId: formData.studentId } });
+      // Redirect to login after registration (OTP removed)
+      navigate('/login', { state: { message: 'Registration successful. Please login.' } });
 
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Please try again.');
