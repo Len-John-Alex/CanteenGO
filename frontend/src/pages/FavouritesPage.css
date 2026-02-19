@@ -150,3 +150,21 @@
 .retry-button:hover {
     background: #2980b9;
 }
+
+.no-favourites {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 4rem 2rem;
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    border: 2px dashed var(--border-light);
+    color: var(--text-muted);
+    margin-top: 2rem;
+}
+
+.no-favourites p:first-child {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text-main);
+    margin-bottom: 0.5rem;
+}
