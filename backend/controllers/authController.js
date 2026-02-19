@@ -36,8 +36,17 @@ const loginStudent = async (req, res) => {
     // Check if verified
     if (!student.is_verified) {
       console.log('Login failed: Account not verified ->', studentId);
+
+      // Resend code to help trigger debug logs and help the user
+      try {
+        console.log('Resending verification email for unverified login...');
+        await sendVerificationEmail(student.email, student.verification_code);
+      } catch (err) {
+        console.error('Failed to resend during login:', err);
+      }
+
       return res.status(403).json({
-        message: 'Email not verified',
+        message: 'Email not verified. A new code has been sent to your email.',
         isNotVerified: true,
         studentId: student.student_id
       });
@@ -95,8 +104,13 @@ const loginStaff = async (req, res) => {
 
     // Check if verified
     if (!staffMember.is_verified) {
+      try {
+        await sendVerificationEmail(staffMember.email, staffMember.verification_code);
+      } catch (err) {
+        console.error('Failed to resend during login:', err);
+      }
       return res.status(403).json({
-        message: 'Email not verified',
+        message: 'Email not verified. A new code has been sent to your email.',
         isNotVerified: true,
         staffId: staffMember.staff_id
       });
