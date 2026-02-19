@@ -61,7 +61,7 @@ const RegisterPage = () => {
 
       // Auto-login after registration
       if (response.token && response.user) {
-        login(response.token, response.user);
+        login(response.user, response.token);
         navigate('/dashboard');
       } else {
         navigate('/login', { state: { message: 'Registration successful. Please login.' } });
