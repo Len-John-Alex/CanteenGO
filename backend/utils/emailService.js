@@ -1,8 +1,28 @@
 const nodemailer = require('nodemailer');
 
 const createTransporter = () => {
-    // Check if service is provided (e.g., 'gmail', 'hotmail')
+    console.log('Creating mail transporter...');
+
+    // Explicit Gmail configuration for better reliability on cloud platforms like Render
+    if (process.env.EMAIL_SERVICE === 'gmail' || process.env.EMAIL_USER?.endsWith('@gmail.com')) {
+        console.log('Using explicit Gmail SMTP configuration (Port 465)');
+        return nodemailer.createTransport({
+            host: 'smtp.gmail.com',
+            port: 465,
+            secure: true, // Use SSL
+            auth: {
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASS
+            },
+            tls: {
+                rejectUnauthorized: false
+            }
+        });
+    }
+
+    // Generic service configuration
     if (process.env.EMAIL_SERVICE) {
+        console.log(`Using generic service: ${process.env.EMAIL_SERVICE}`);
         return nodemailer.createTransport({
             service: process.env.EMAIL_SERVICE,
             auth: {
@@ -17,10 +37,11 @@ const createTransporter = () => {
 
     // Fallback to custom SMTP if host is provided
     if (process.env.SMTP_HOST) {
+        console.log(`Using custom SMTP: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`);
         return nodemailer.createTransport({
             host: process.env.SMTP_HOST,
             port: process.env.SMTP_PORT || 587,
-            secure: false, // true for 465, false for other ports
+            secure: process.env.SMTP_SECURE === 'true',
             auth: {
                 user: process.env.EMAIL_USER,
                 pass: process.env.EMAIL_PASS
@@ -31,6 +52,7 @@ const createTransporter = () => {
         });
     }
 
+    console.error('No email configuration found in environment variables!');
     return null;
 };
 
