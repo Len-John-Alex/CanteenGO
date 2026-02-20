@@ -113,14 +113,14 @@ const FavouritesPage = () => {
                                     <span className="favourite-item-price">₹{parseFloat(item.price).toFixed(2)}</span>
                                     <span className="favourite-item-category">{item.category}</span>
                                 </div>
-                                <button
-                                    className={`add-to-cart-btn ${!item.is_available || item.quantity === 0 ? 'disabled' : ''}`}
-                                    onClick={() => handleAddToCart(item)}
-                                    disabled={!item.is_available || item.quantity === 0}
-                                >
-                                    {!item.is_available || item.quantity === 0 ? 'Out of Stock' : 'Add to Cart'}
-                                </button>
                             </div>
+                            <button
+                                className={`add-to-cart-btn ${!item.is_available || item.quantity === 0 ? 'disabled' : ''}`}
+                                onClick={() => handleAddToCart(item)}
+                                disabled={!item.is_available || item.quantity === 0}
+                            >
+                                {!item.is_available || item.quantity === 0 ? 'Out of Stock' : 'Add to Cart'}
+                            </button>
                         </div>
                     ))}
                 </div>

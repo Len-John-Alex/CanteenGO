@@ -116,7 +116,9 @@
 }
 
 .add-to-cart-btn {
-    width: 100%;
+    display: block;
+    width: 90%;
+    margin: 0 auto 1.5rem;
     background: rgba(79, 70, 229, 0.9);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
@@ -128,6 +130,7 @@
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    text-align: center;
 }
 
 .add-to-cart-btn:hover {
