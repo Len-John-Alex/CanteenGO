@@ -4,7 +4,7 @@ import { useNotification } from '../context/NotificationContext';
 import './Notifications.css';
 
 const Notifications = () => {
-    const { notifications, unreadCount, markAsRead, isConnected } = useNotification();
+    const { notifications, unreadCount, markAsRead, isConnected, fetchNotifications } = useNotification();
     const [showList, setShowList] = useState(false);
     const wrapperRef = useRef(null);
     const navigate = useNavigate();
