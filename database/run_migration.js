@@ -6,11 +6,13 @@ const fs = require('fs');
 const runMigration = async () => {
     try {
         const client = new Client({
+            connectionString: process.env.DATABASE_URL,
             host: process.env.DB_HOST || 'localhost',
             user: process.env.DB_USER || 'postgres',
             password: process.env.DB_PASSWORD,
             database: process.env.DB_NAME || 'college_canteen',
             port: process.env.DB_PORT || 5432,
+            ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false
         });
 
         await client.connect();

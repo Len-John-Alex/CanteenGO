@@ -4,7 +4,7 @@ import { useNotification } from '../context/NotificationContext';
 import './Notifications.css';
 
 const Notifications = () => {
-    const { notifications, unreadCount, markAsRead } = useNotification();
+    const { notifications, unreadCount, markAsRead, isConnected } = useNotification();
     const [showList, setShowList] = useState(false);
     const wrapperRef = useRef(null);
     const navigate = useNavigate();
@@ -67,7 +67,24 @@ const Notifications = () => {
 
             {showList && (
                 <div className="notifications-dropdown">
-                    <h3>Notifications</h3>
+                    <div className="dropdown-header">
+                        <h3>Notifications</h3>
+                        <button
+                            className="manual-refresh-btn"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                fetchNotifications();
+                            }}
+                            title="Refresh"
+                        >
+                            ↻
+                        </button>
+                    </div>
+                    {!isConnected && (
+                        <div className="connection-error">
+                            ⚠️ Connection lost. Retrying...
+                        </div>
+                    )}
                     <div className="notifications-list">
                         {notifications.length === 0 ? (
                             <p className="no-notifications">No notifications yet</p>

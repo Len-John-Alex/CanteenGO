@@ -4,10 +4,16 @@ import { useNavigate, Link } from 'react-router-dom';
 import Menu from '../components/Menu';
 import Notifications from '../components/Notifications';
 import SpendingStats from '../components/SpendingStats';
+import { useNotification } from '../context/NotificationContext';
 import './Dashboard.css';
 
 const Dashboard = () => {
   const { user } = useAuth();
+  const { showNotification } = useNotification();
+
+  const testNotif = () => {
+    showNotification('Test Notification Works! 🚀', 'success');
+  };
 
   return (
     <div className="dashboard-container">
@@ -29,6 +35,9 @@ const Dashboard = () => {
                 <span className="info-value">{user?.email}</span>
               </div>
             )}
+            <button className="test-notif-btn" onClick={testNotif}>
+              Test Info Notification
+            </button>
           </div>
         </div>
 

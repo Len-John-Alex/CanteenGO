@@ -108,7 +108,17 @@ const completeOrder = async (req, res) => {
         // 6. Clear Cart
         await client.query('DELETE FROM cart_items WHERE student_id = $1', [student_id]);
 
-        // 6. Notify All Staff about new order
+        // 7. Notify Student about order placement
+        try {
+            await client.query(
+                "INSERT INTO notifications (student_id, staff_id, order_id, message, type, recipient_type) VALUES ($1, NULL, $2, $3, 'ORDER', 'student')",
+                [student_id, orderId, `Order #${orderId} placed successfully! Thank you for choosing CanteenGO.`]
+            );
+        } catch (studentNotifError) {
+            console.error('Error sending student notification:', studentNotifError);
+        }
+
+        // 8. Notify All Staff about new order
         try {
             // Get student name for the notification
             const studentResult = await client.query(
@@ -347,8 +357,9 @@ const updateOrderStatus = async (req, res) => {
             return res.status(404).json({ message: 'Order not found' });
         }
 
-        // Trigger notification for READY or COMPLETED
-        if (status === 'READY' || status === 'COMPLETED') {
+        // Trigger notification for status changes
+        const studentStatuses = ['PREPARING', 'READY', 'COMPLETED', 'CANCELLED'];
+        if (studentStatuses.includes(status)) {
             const orderInfoResult = await pool.query(
                 'SELECT student_id FROM orders WHERE id = $1',
                 [id]
@@ -356,14 +367,29 @@ const updateOrderStatus = async (req, res) => {
 
             if (orderInfoResult.rows.length > 0) {
                 const studentId = orderInfoResult.rows[0].student_id;
-                const message = status === 'READY'
-                    ? `Your order #${id} is READY for pickup!`
-                    : `Your order #${id} has been COMPLETED. Enjoy your meal!`;
+                let message = '';
 
-                await pool.query(
-                    "INSERT INTO notifications (student_id, staff_id, order_id, message, type, recipient_type) VALUES ($1, NULL, $2, $3, 'ORDER', 'student')",
-                    [studentId, id, message]
-                );
+                switch (status) {
+                    case 'PREPARING':
+                        message = `Your order #${id} is now being prepared!`;
+                        break;
+                    case 'READY':
+                        message = `Your order #${id} is READY for pickup!`;
+                        break;
+                    case 'COMPLETED':
+                        message = `Your order #${id} has been COMPLETED. Enjoy your meal!`;
+                        break;
+                    case 'CANCELLED':
+                        message = `Your order #${id} has been CANCELLED.`;
+                        break;
+                }
+
+                if (message) {
+                    await pool.query(
+                        "INSERT INTO notifications (student_id, staff_id, order_id, message, type, recipient_type) VALUES ($1, NULL, $2, $3, 'ORDER', 'student')",
+                        [studentId, id, message]
+                    );
+                }
             }
         }
 

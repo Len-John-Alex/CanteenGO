@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
+import api from '../services/authService';
 
 const NotificationContext = createContext();
 
@@ -16,6 +17,8 @@ export const NotificationProvider = ({ children }) => {
     const [persistentNotifications, setPersistentNotifications] = useState([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const { user } = useAuth();
+    const prevCountRef = useRef(-1); // Initialize with -1 to differentiate from 0 initial notifs
+    const [isConnected, setIsConnected] = useState(true);
 
     // TOAST NOTIFICATIONS
     const showNotification = useCallback((message, type = 'success') => {
@@ -41,65 +44,63 @@ export const NotificationProvider = ({ children }) => {
     const fetchNotifications = useCallback(async (isInitial = false) => {
         if (!user) return;
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/notifications', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
+            const res = await api.get('/notifications');
+            const data = Array.isArray(res.data) ? res.data : [];
 
-                // If we have new notifications and it's not the first load, show a toast
-                if (!isInitial && persistentNotifications.length > 0 && data.length > persistentNotifications.length) {
-                    const newCount = data.length - persistentNotifications.length;
-                    const latestNotif = data[0];
+            setIsConnected(true);
+
+            console.log(`[Notifications] Fetched ${data.length} notifications. isInitial: ${isInitial}, prevCount: ${prevCountRef.current}`);
+
+            // If we have new notifications and it's not the first load, show a toast
+            if (!isInitial && prevCountRef.current !== -1 && data.length > prevCountRef.current) {
+                const newCount = data.length - prevCountRef.current;
+                console.log(`[Notifications] ${newCount} new notifications detected!`);
+
+                // Show toast for the most recent one
+                const latestNotif = data[0];
+                if (latestNotif) {
                     showNotification(latestNotif.message, 'info');
                 }
-
-                setPersistentNotifications(data);
             }
+
+            prevCountRef.current = data.length;
+            setPersistentNotifications(data);
         } catch (error) {
-            console.error('Error fetching notifications:', error);
+            console.error('[Notifications] Error fetching notifications:', error);
+            setIsConnected(false);
         }
-    }, [user, persistentNotifications.length, showNotification]);
+    }, [user, showNotification]);
 
     const fetchUnreadCount = useCallback(async () => {
         if (!user) return;
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch('http://localhost:5000/api/notifications/unread-count', {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            if (res.ok) {
-                const data = await res.json();
-                setUnreadCount(data.count);
-            }
+            const res = await api.get('/notifications/unread-count');
+            const count = typeof res.data.count === 'number' ? res.data.count : 0;
+            setUnreadCount(count);
+            setIsConnected(true);
         } catch (error) {
-            console.error('Error fetching unread count:', error);
+            console.error('[Notifications] Error fetching unread count:', error);
+            setIsConnected(false);
         }
     }, [user]);
 
     const markAsRead = useCallback(async (id) => {
         try {
-            const token = localStorage.getItem('token');
-            const res = await fetch(`http://localhost:5000/api/notifications/${id}/read`, {
-                method: 'PATCH',
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            await api.patch(`/notifications/${id}/read`);
 
-            if (res.ok) {
-                setPersistentNotifications(prev =>
-                    prev.map(n => n.id === id ? { ...n, is_read: 1 } : n)
-                );
-                setUnreadCount(prev => Math.max(0, prev - 1));
-            }
+            setPersistentNotifications(prev =>
+                prev.map(n => n.id === id ? { ...n, is_read: true } : n)
+            );
+            setUnreadCount(prev => Math.max(0, prev - 1));
         } catch (error) {
-            console.error('Error marking as read:', error);
+            console.error('[Notifications] Error marking as read:', error);
         }
     }, []);
 
     // Poll for new notifications
     useEffect(() => {
         if (user) {
+            console.log('[Notifications] Initializing polling for user:', user.id);
             fetchNotifications(true); // Pass true for initial load to skip toast
             fetchUnreadCount();
 
@@ -109,10 +110,15 @@ export const NotificationProvider = ({ children }) => {
                 fetchUnreadCount();
             }, 10000);
 
-            return () => clearInterval(interval);
+            return () => {
+                console.log('[Notifications] Cleaning up polling');
+                clearInterval(interval);
+            };
         } else {
             setPersistentNotifications([]);
             setUnreadCount(0);
+            prevCountRef.current = -1;
+            setIsConnected(true);
         }
     }, [user, fetchNotifications, fetchUnreadCount]);
 
@@ -123,7 +129,8 @@ export const NotificationProvider = ({ children }) => {
             notifications: persistentNotifications,
             unreadCount,
             fetchNotifications,
-            markAsRead
+            markAsRead,
+            isConnected
         }}>
             {children}
             <div className="global-toast-container">

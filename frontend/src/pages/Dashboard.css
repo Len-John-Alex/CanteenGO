@@ -68,6 +68,26 @@
   color: var(--text-main);
 }
 
+.test-notif-btn {
+  margin-top: 1rem;
+  background: var(--bg-main);
+  border: 1px dashed var(--primary);
+  color: var(--primary);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  width: fit-content;
+}
+
+.test-notif-btn:hover {
+  background: var(--primary);
+  color: white;
+  border-style: solid;
+}
+
 @media (max-width: 768px) {
   .dashboard-container {
     padding: 1.5rem;

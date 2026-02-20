@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { favouriteService } from '../services/favouriteService';
 import { cartService } from '../services/cartService';
 import { useNotification } from '../context/NotificationContext';
+import { BASE_URL } from '../services/authService';
 import './FavouritesPage.css';
 
 const FavouritesPage = () => {
@@ -51,7 +52,11 @@ const FavouritesPage = () => {
             showNotification(`${item.name} added to cart!`);
         } catch (err) {
             console.error('Failed to add to cart:', err);
-            showNotification('Failed to add to cart', 'error');
+            let errorMessage = 'Failed to add to cart';
+            if (err.request) {
+                errorMessage = `Cannot connect to server. Is the backend running on ${BASE_URL}?`;
+            }
+            showNotification(errorMessage, 'error');
         }
     };
 
@@ -96,7 +101,7 @@ const FavouritesPage = () => {
                             </button>
                             <div className="favourite-item-image">
                                 {item.image_url ? (
-                                    <img src={`http://localhost:5000${item.image_url}`} alt={item.name} />
+                                    <img src={item.image_url.startsWith('http') ? item.image_url : `${BASE_URL}${item.image_url}`} alt={item.name} />
                                 ) : (
                                     <div className="no-img-placeholder">No Image</div>
                                 )}

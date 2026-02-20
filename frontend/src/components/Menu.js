@@ -55,7 +55,7 @@ const Menu = () => {
       if (err.response) {
         errorMessage = err.response.data?.message || `Server error: ${err.response.status}`;
       } else if (err.request) {
-        errorMessage = 'Cannot connect to server. Is the backend running on http://localhost:5000?';
+        errorMessage = `Cannot connect to server. Is the backend running on ${BASE_URL}?`;
       } else {
         errorMessage = err.message || 'Unknown error occurred';
       }

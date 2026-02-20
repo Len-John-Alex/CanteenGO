@@ -47,10 +47,40 @@
 
 .notifications-dropdown h3 {
     padding: 1rem;
-    border-bottom: 1px solid #f1f5f9;
     font-size: 0.9rem;
     margin: 0;
     color: #475569;
+}
+
+.dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+}
+
+.manual-refresh-btn {
+    background: transparent;
+    border: none;
+    color: #0ea5e9;
+    font-size: 1.25rem;
+    padding: 0 1rem;
+    cursor: pointer;
+    transition: transform 0.3s;
+}
+
+.manual-refresh-btn:active {
+    transform: rotate(180deg);
+}
+
+.connection-error {
+    background: #fffbeb;
+    color: #92400e;
+    padding: 0.5rem 1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-align: center;
+    border-bottom: 1px solid #fef3c7;
 }
 
 .notifications-list {

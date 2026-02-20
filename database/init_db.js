@@ -32,6 +32,7 @@ const initDb = async () => {
             '08_add_order_notes.sql',
             '09_add_student_visibility_to_orders.sql',
             '10_add_verification_to_staff.sql',
+            '11_add_cart_items.sql',
             'add-unique-constraint.sql'
         ];
 
