@@ -7,13 +7,14 @@ Write-Host "This script will help you set up the database." -ForegroundColor Yel
 Write-Host ""
 Write-Host "You need to run the SQL schema manually:" -ForegroundColor Yellow
 Write-Host ""
-Write-Host "Option 1: Using MySQL Command Line" -ForegroundColor Cyan
-Write-Host "  mysql -u root -p < database\schema.sql" -ForegroundColor White
+Write-Host "Option 1: Using PostgreSQL Command Line (psql)" -ForegroundColor Cyan
+Write-Host "  psql -U postgres -d college_canteen -f database\schema.sql" -ForegroundColor White
 Write-Host ""
-Write-Host "Option 2: Using MySQL Workbench" -ForegroundColor Cyan
-Write-Host "  1. Open MySQL Workbench" -ForegroundColor White
-Write-Host "  2. Connect to your MySQL server" -ForegroundColor White
-Write-Host "  3. Open and run: database\schema.sql" -ForegroundColor White
+Write-Host "Option 2: Using pgAdmin or DBeaver" -ForegroundColor Cyan
+Write-Host "  1. Open your database management tool" -ForegroundColor White
+Write-Host "  2. Connect to your PostgreSQL server" -ForegroundColor White
+Write-Host "  3. Create 'college_canteen' database" -ForegroundColor White
+Write-Host "  4. Open and run: database\schema.sql" -ForegroundColor White
 Write-Host ""
 Write-Host "After running the schema, press any key to seed the database..." -ForegroundColor Yellow
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
