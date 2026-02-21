@@ -23,5 +23,5 @@ CanteenGO is a modern, full-stack Canteen Management System designed to streamli
 
 - **Frontend**: React.js, React Router, Context API, CSS3
 - **Backend**: Node.js, Express.js
-- **Database**: MySQL (relational schema for high integrity)
+- **Database**: Postgresql (relational schema for high integrity)
 - **Security**: JWT-based Authentication, Bcrypt Password Hashing, Environment-based configuration
