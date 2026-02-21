@@ -21,19 +21,7 @@ const initDb = async () => {
         console.log('Connected to database.');
 
         const sqlFiles = [
-            'schema.sql',
-            '01_add_time_slots.sql',
-            '02_add_orders.sql',
-            '03_add_notifications.sql',
-            '04_add_favourites_feedback.sql',
-            '05_update_notifications_schema.sql',
-            '06_add_verification_to_students.sql',
-            '07_add_soft_delete_to_students.sql',
-            '08_add_order_notes.sql',
-            '09_add_student_visibility_to_orders.sql',
-            '10_add_verification_to_staff.sql',
-            '11_add_cart_items.sql',
-            'add-unique-constraint.sql'
+            'schema.sql'
         ];
 
         for (const file of sqlFiles) {

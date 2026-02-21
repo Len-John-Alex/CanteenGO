@@ -18,7 +18,7 @@ const runMigration = async () => {
         await client.connect();
         console.log('Connected to database.');
 
-        let schemas = ['01_add_time_slots.sql', '02_add_orders.sql'];
+        let schemas = [];
 
         if (process.argv[2]) {
             schemas = [process.argv[2]];
